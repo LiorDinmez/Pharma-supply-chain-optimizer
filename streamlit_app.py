@@ -1,18 +1,34 @@
 """
-Advanced Dashboard Module for Pharmaceutical Supply Chain Optimization - Enhanced Visual Edition
-=============================================================================================
-This module provides stunning, colorful visualization capabilities for analyzing
-optimization results, KPI trends, and supply chain performance metrics with modern design.
+Pharmaceutical Supply Chain Optimization Dashboard - Enhanced Visual Edition
+=========================================================================
+Beautiful, colorful, and highly interactive Streamlit application for 
+pharmaceutical supply chain optimization with stunning visualizations.
 """
 
+import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import numpy as np
 from datetime import datetime, timedelta
-from typing import Dict, List, Any
-import streamlit as st
+import json
+import time
+
+# Try to import plotly with error handling
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
+    st.error("⚠️ Plotly not available. Please check requirements.txt")
+
+# Try to import optimization service with error handling
+try:
+    from optimization import get_optimization_service
+    OPTIMIZATION_AVAILABLE = True
+except ImportError:
+    OPTIMIZATION_AVAILABLE = False
+    st.error("⚠️ Optimization module not available. Please check optimization.py")
 
 class SupplyChainDashboard:
     """Advanced dashboard with beautiful, colorful visualizations"""
