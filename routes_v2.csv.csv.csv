@@ -1,0 +1,11 @@
+route_id,origin,destination,transport_mode,capacity_kg,capacity_m3,cost_per_kg,transit_days
+R001,Factory,EU Hub,Sea,25000,125,0.15,14
+R002,Factory,US Hub,Air,15000,75,2.50,3
+R003,Factory,Asia Hub,Sea,30000,150,0.12,21
+R004,Factory,Canada Hub,Sea,20000,100,0.18,12
+R005,Factory,Australia Hub,Sea,25000,125,0.20,25
+R006,EU Hub,Local EU,Land,5000,25,0.08,2
+R007,US Hub,Local US,Land,8000,40,0.10,3
+R008,Asia Hub,Local Asia,Land,6000,30,0.06,4
+R009,Canada Hub,Local Canada,Land,4000,20,0.09,2
+R010,Australia Hub,Local Australia,Land,3000,15,0.12,3 

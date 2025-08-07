@@ -1,0 +1,16 @@
+batch_id,material,quantity_doses,value_eur,current_station,target_market,expected_release_date,days_in_queue,delay_reason,weight_kg,volume_m3
+B001,Paracetamol,50000,85000,Packaging,EU,2025-08-15,5,Quality Check,2500,12.5
+B002,Ibuprofen,75000,120000,QA,US,2025-08-20,8,Regulatory Review,3750,18.75
+B003,Aspirin,30000,45000,Shipping,Asia,2025-08-10,3,Logistics Delay,1500,7.5
+B004,Omeprazole,60000,95000,Packaging,EU,2025-08-25,12,Supply Chain Issue,3000,15.0
+B005,Metformin,40000,65000,QA,US,2025-08-18,7,Documentation,2000,10.0
+B006,Atorvastatin,55000,88000,Shipping,Canada,2025-08-12,4,Transport Delay,2750,13.75
+B007,Lisinopril,35000,52000,Packaging,EU,2025-08-22,10,Quality Hold,1750,8.75
+B008,Amlodipine,45000,72000,QA,US,2025-08-16,6,Regulatory Hold,2250,11.25
+B009,Simvastatin,50000,78000,Shipping,Australia,2025-08-14,5,Customs Delay,2500,12.5
+B010,Losartan,40000,62000,Packaging,EU,2025-08-28,15,Supply Issue,2000,10.0
+B011,Metoprolol,30000,48000,QA,US,2025-08-19,8,Documentation,1500,7.5
+B012,Hydrochlorothiazide,35000,55000,Shipping,Asia,2025-08-11,4,Logistics,1750,8.75
+B013,Furosemide,25000,38000,Packaging,EU,2025-08-24,11,Quality Check,1250,6.25
+B014,Spironolactone,30000,45000,QA,Canada,2025-08-17,7,Regulatory Review,1500,7.5
+B015,Carvedilol,40000,68000,Shipping,US,2025-08-13,5,Transport Issue,2000,10.0 
