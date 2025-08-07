@@ -1,8 +1,8 @@
 """
-Optimization Wrapper for Streamlit Integration
-=============================================
+Optimization Wrapper for Streamlit Integration - FIXED VERSION
+============================================================
 This module provides a simplified interface to the AdvancedOptimizationEngine
-for use in the Streamlit application.
+for use in the Streamlit application. Fixed circular import issue.
 """
 
 import pandas as pd
@@ -11,17 +11,26 @@ from pathlib import Path
 from typing import Dict, Any, Tuple
 import logging
 
-# Import the main optimization engine
-from optimization_engine_v2 import AdvancedOptimizationEngine, load_cfg
-
 class OptimizationService:
     """Service class that wraps the optimization engine for easy use in Streamlit"""
     
     def __init__(self, config_path: str = None):
         """Initialize the optimization service"""
-        self.engine = AdvancedOptimizationEngine(config_path)
         self.logger = logging.getLogger(__name__)
+        self.engine = None
+        self.config_path = config_path
+        self._initialize_engine()
         
+    def _initialize_engine(self):
+        """Initialize the optimization engine with dynamic import"""
+        try:
+            # Dynamic import to avoid circular import
+            from optimization_engine_v2 import AdvancedOptimizationEngine
+            self.engine = AdvancedOptimizationEngine(self.config_path)
+        except Exception as e:
+            self.logger.error(f"Failed to initialize optimization engine: {e}")
+            self.engine = None
+    
     def load_sample_data(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Load the sample batch and route data"""
         try:
@@ -95,6 +104,9 @@ class OptimizationService:
                         constraints: Dict[str, Any] = None) -> Dict[str, Any]:
         """Run the optimization and return results"""
         
+        if self.engine is None:
+            raise RuntimeError("Optimization engine not initialized. Please check optimization_engine_v2.py")
+        
         # Default constraints
         default_constraints = {
             'max_transit_days': 21,
@@ -130,6 +142,9 @@ class OptimizationService:
     
     def get_optimization_history(self) -> pd.DataFrame:
         """Retrieve optimization history from the database"""
+        if self.engine is None:
+            return pd.DataFrame()
+            
         db_path = Path(self.engine.cfg["db_path"])
         
         if not db_path.exists():
@@ -156,6 +171,9 @@ class OptimizationService:
     
     def clear_optimization_history(self) -> bool:
         """Clear the optimization history database"""
+        if self.engine is None:
+            return False
+            
         db_path = Path(self.engine.cfg["db_path"])
         
         if not db_path.exists():
@@ -218,9 +236,12 @@ COMPLIANCE:
         else:
             raise ValueError(f"Unsupported export format: {format}")
 
-# Global instance for Streamlit
-optimization_service = OptimizationService()
+# Create a function that returns the service instance (lazy initialization)
+_optimization_service = None
 
 def get_optimization_service() -> OptimizationService:
     """Get the global optimization service instance"""
-    return optimization_service
+    global _optimization_service
+    if _optimization_service is None:
+        _optimization_service = OptimizationService()
+    return _optimization_service
