@@ -26,14 +26,14 @@ st.set_page_config(
     layout="wide"
 )
 
-# Dark theme CSS with RTL support
+# Dark theme CSS with left alignment
 st.markdown("""
 <style>
     .stApp {
         background-color: #1e1e1e;
         color: #ffffff;
-        direction: rtl;
-        text-align: right;
+        direction: ltr;
+        text-align: left;
     }
     .main-header {
         background: linear-gradient(90deg, #2d3748 0%, #4a5568 100%);
@@ -48,19 +48,19 @@ st.markdown("""
         background: #2d3748;
         padding: 20px;
         border-radius: 10px;
-        border-right: 4px solid #4299e1;
+        border-left: 4px solid #4299e1;
         margin: 10px 0;
         color: #ffffff;
-        direction: rtl;
-        text-align: right;
+        direction: ltr;
+        text-align: left;
     }
     .metric-title {
         font-size: 16px;
         color: #a0aec0;
         margin: 0 0 10px 0;
         font-weight: 600;
-        direction: rtl;
-        text-align: right;
+        direction: ltr;
+        text-align: left;
     }
     .metric-value {
         font-size: 32px;
@@ -73,24 +73,24 @@ st.markdown("""
         font-size: 14px;
         color: #a0aec0;
         margin: 5px 0 0 0;
-        direction: rtl;
-        text-align: right;
+        direction: ltr;
+        text-align: left;
     }
     .section-header {
         background: #2d3748;
         padding: 15px;
         border-radius: 8px;
         margin: 20px 0 10px 0;
-        border-right: 4px solid #48bb78;
-        direction: rtl;
-        text-align: right;
+        border-left: 4px solid #48bb78;
+        direction: ltr;
+        text-align: left;
     }
     .section-header h3 {
         color: #ffffff;
         margin: 0;
         font-size: 20px;
-        direction: rtl;
-        text-align: right;
+        direction: ltr;
+        text-align: left;
     }
     .download-section {
         background: #2d3748;
@@ -110,16 +110,16 @@ st.markdown("""
         color: #ffffff;
     }
     .stMarkdown p {
-        direction: rtl;
-        text-align: right;
+        direction: ltr;
+        text-align: left;
     }
     .stSelectbox label {
-        direction: rtl;
-        text-align: right;
+        direction: ltr;
+        text-align: left;
     }
     .stSlider label {
-        direction: rtl;
-        text-align: right;
+        direction: ltr;
+        text-align: left;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -128,7 +128,7 @@ st.markdown("""
 st.markdown("""
 <div class="main-header">
     <h1>🏭 Pharmaceutical Supply Chain AI Agent POC</h1>
-    <p>מערכת ניהול שרשרת אספקה פארמצבטית עם AI Agent</p>
+            <p>Pharmaceutical Supply Chain Management System with AI Agent</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -154,7 +154,7 @@ def generate_post_pack_queue():
         market = random.choice(markets)
         station = random.choice(stations)
         
-        # ימים בתור - מהונדס לשיפור של 30%
+        # Days in queue - engineered for 30% improvement
         if random.random() < 0.7:
             days_in_queue = random.randint(8, 25)
             delay_reason = 'None'
