@@ -946,7 +946,7 @@ def main():
                     
                     except Exception as e:
                         st.error(f"❌ Optimization failed: {str(e)}")
-                                                        st.info("💡 Make sure the CSV files (batches_v2.csv and routes_v2.csv) are in the same directory as the dashboard.")
+                        st.info("💡 Make sure the CSV files (batches_v2.csv and routes_v2.csv) are in the same directory as the dashboard.")
         except FileNotFoundError:
             st.error("❌ Optimization data files not found!")
             st.info("💡 Please ensure 'batches_v2.csv' and 'routes_v2.csv' are in the same directory as the dashboard.")
