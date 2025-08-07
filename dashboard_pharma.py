@@ -644,71 +644,41 @@ def main():
     # Logistics
     st.markdown('<div class="section-header"><h3>📦 Logistics</h3></div>', unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
-        # Top 5 Products in shipping queue (booking completed)
+        # Products in shipping queue (booking completed) - Total
         booked_items = ppq_df[ppq_df['booking_status'] == 'Booked']
-        top_5_booked = booked_items.nlargest(5, 'value_eur')[['batch_id', 'value_eur', 'target_market', 'material']]
+        booked_count = len(booked_items)
+        booked_value = booked_items['value_eur'].sum()
         
-        st.markdown("""
+        st.markdown(f"""
         <div class="metric-container">
-            <div class="metric-title">🚛 Top 5 Products in Shipping Queue (Booking Completed)</div>
+            <div class="metric-title">🚛 Products in Shipping Queue (Booking Completed)</div>
+            <div class="metric-value" style="color: #48bb78;">€{booked_value:,.0f}</div>
+            <div class="metric-subtitle">{booked_count} rows</div>
         </div>
         """, unsafe_allow_html=True)
-        
-        for idx, row in top_5_booked.iterrows():
-            st.markdown(f"""
-            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid #48bb78;">
-                <div style="color: #ffffff; font-size: 11px;">{row['batch_id']}</div>
-                <div style="color: #48bb78; font-size: 13px; font-weight: bold;">€{row['value_eur']:,.0f}</div>
-                <div style="color: #a0aec0; font-size: 10px;">{row['target_market']} | {row['material'][:15]}{'...' if len(row['material']) > 15 else ''}</div>
-            </div>
-            """, unsafe_allow_html=True)
     
     with col2:
-        # Top 5 Products after packaging without customer orders
+        # Products after packaging without customer orders - Total
         no_orders = ppq_df[ppq_df['has_customer_order'] == False]
-        top_5_no_orders = no_orders.nlargest(5, 'value_eur')[['batch_id', 'value_eur', 'target_market', 'days_after_packaging']]
+        no_orders_count = len(no_orders)
+        no_orders_value = no_orders['value_eur'].sum()
+        avg_days_after_packaging = no_orders['days_after_packaging'].mean()
         
-        st.markdown("""
+        st.markdown(f"""
         <div class="metric-container">
-            <div class="metric-title">📦 Top 5 Products After Packaging Without Orders</div>
+            <div class="metric-title">📦 Products After Packaging Without Orders</div>
+            <div class="metric-value" style="color: #f6ad55;">€{no_orders_value:,.0f}</div>
+            <div class="metric-subtitle">{no_orders_count} rows | {avg_days_after_packaging:.1f} days</div>
         </div>
         """, unsafe_allow_html=True)
-        
-        for idx, row in top_5_no_orders.iterrows():
-            st.markdown(f"""
-            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid #f6ad55;">
-                <div style="color: #ffffff; font-size: 11px;">{row['batch_id']}</div>
-                <div style="color: #f6ad55; font-size: 13px; font-weight: bold;">€{row['value_eur']:,.0f}</div>
-                <div style="color: #a0aec0; font-size: 10px;">{row['target_market']} | {row['days_after_packaging']} days</div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    with col3:
-        # Top 5 High Value Batches for Shipping
-        top_5_batches = ppq_df.nlargest(5, 'value_eur')[['batch_id', 'value_eur', 'current_station']]
-        
-        st.markdown("""
-        <div class="metric-container">
-            <div class="metric-title">Top 5 High Value Batches</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        for idx, row in top_5_batches.iterrows():
-            st.markdown(f"""
-            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid #4299e1;">
-                <div style="color: #ffffff; font-size: 12px;">{row['batch_id']}</div>
-                <div style="color: #48bb78; font-size: 14px; font-weight: bold;">€{row['value_eur']:,.0f}</div>
-                <div style="color: #a0aec0; font-size: 10px;">{row['current_station']}</div>
-            </div>
-            """, unsafe_allow_html=True)
     
     # Laboratory
     st.markdown('<div class="section-header"><h3>🔬 Laboratory</h3></div>', unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
         # Top 5 Overall Products in Queue
@@ -729,27 +699,9 @@ def main():
             </div>
             """, unsafe_allow_html=True)
     
-    with col2:
-        # Top 5 Products in queue over 14 days
-        over_14_days = ppq_df[ppq_df['days_in_queue'] > 14]
-        top_5_over_14 = over_14_days.nlargest(5, 'value_eur')[['batch_id', 'value_eur', 'target_market', 'days_in_queue']]
-        
-        st.markdown("""
-        <div class="metric-container">
-            <div class="metric-title">⏰ Top 5 Products in Queue >14 Days</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        for idx, row in top_5_over_14.iterrows():
-            st.markdown(f"""
-            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid #f56565;">
-                <div style="color: #ffffff; font-size: 11px;">{row['batch_id']}</div>
-                <div style="color: #f56565; font-size: 13px; font-weight: bold;">€{row['value_eur']:,.0f}</div>
-                <div style="color: #a0aec0; font-size: 10px;">{row['target_market']} | {row['days_in_queue']} days</div>
-            </div>
-            """, unsafe_allow_html=True)
+
     
-    with col3:
+    with col2:
         # Top 5 Longest Queue Items
         top_5_longest = ppq_df.nlargest(5, 'days_in_queue')[['batch_id', 'days_in_queue', 'current_station']]
         
@@ -771,7 +723,7 @@ def main():
     # Service Level
     st.markdown('<div class="section-header"><h3>📈 Service Level</h3></div>', unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
         # Expected OTIF at end of month
@@ -786,43 +738,18 @@ def main():
         """, unsafe_allow_html=True)
     
     with col2:
-        # Top 5 Exception/at-risk products
+        # Number of OTIF lines at risk
         at_risk_items = ppq_df[ppq_df['days_in_queue'] > 25]
-        top_5_at_risk = at_risk_items.nlargest(5, 'value_eur')[['batch_id', 'value_eur', 'target_market', 'days_in_queue']]
+        at_risk_count = len(at_risk_items)
+        at_risk_value = at_risk_items['value_eur'].sum()
         
-        st.markdown("""
+        st.markdown(f"""
         <div class="metric-container">
-            <div class="metric-title">⚠️ Top 5 Exception/At-Risk Products</div>
+            <div class="metric-title">⚠️ Exception/At-Risk Rows</div>
+            <div class="metric-value" style="color: #f56565;">€{at_risk_value:,.0f}</div>
+            <div class="metric-subtitle">{at_risk_count} rows | Reason: Investigation</div>
         </div>
         """, unsafe_allow_html=True)
-        
-        for idx, row in top_5_at_risk.iterrows():
-            st.markdown(f"""
-            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid #f56565;">
-                <div style="color: #ffffff; font-size: 11px;">{row['batch_id']}</div>
-                <div style="color: #f56565; font-size: 13px; font-weight: bold;">€{row['value_eur']:,.0f}</div>
-                <div style="color: #a0aec0; font-size: 10px;">{row['target_market']} | {row['days_in_queue']} days</div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    with col3:
-        # Top 5 Customers by OTIF Performance
-        customer_otif = otif_df.groupby('customer_name')['otif_percentage'].mean().sort_values(ascending=False).head(5)
-        
-        st.markdown("""
-        <div class="metric-container">
-            <div class="metric-title">Top 5 Customers by OTIF</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        for customer, otif_score in customer_otif.items():
-            color = '#48bb78' if otif_score >= 80 else '#f56565'
-            st.markdown(f"""
-            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid {color};">
-                <div style="color: #ffffff; font-size: 11px;">{customer[:20]}{'...' if len(customer) > 20 else ''}</div>
-                <div style="color: {color}; font-size: 14px; font-weight: bold;">{otif_score:.1f}%</div>
-            </div>
-            """, unsafe_allow_html=True)
     
     # Inventory
     st.markdown('<div class="section-header"><h3>📊 Inventory</h3></div>', unsafe_allow_html=True)
