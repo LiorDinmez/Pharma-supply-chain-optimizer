@@ -447,6 +447,34 @@ def generate_routing_constraints():
     
     return pd.DataFrame(data)
 
+@st.cache_data
+def generate_weekly_shipment_planning():
+    """Weekly Shipment Planning with Timeslots - 20 rows"""
+    timeslots = ['08:00-10:00', '10:00-12:00', '12:00-14:00', '14:00-16:00', '16:00-18:00']
+    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+    
+    data = []
+    for i in range(1, 21):
+        day = random.choice(days)
+        timeslot = random.choice(timeslots)
+        batch_id = f"200016{4800 + random.randint(1, 150)}"
+        route_id = f"RT-{random.randint(1, 15):03d}"
+        capacity_utilization = random.randint(60, 95)
+        priority = random.choice(['High', 'Medium', 'Low'])
+        
+        data.append({
+            'day': day,
+            'timeslot': timeslot,
+            'batch_id': batch_id,
+            'route_id': route_id,
+            'capacity_utilization_percent': capacity_utilization,
+            'priority': priority,
+            'planned_weight_kg': random.randint(2000, 10000),
+            'planned_value_eur': random.randint(50000, 200000)
+        })
+    
+    return pd.DataFrame(data)
+
 def main():
     # Calculate current week number and days remaining in month
     from datetime import datetime, date
@@ -491,7 +519,8 @@ def main():
             'otif_historical': generate_otif_historical(),
             'shortage_report': generate_shortage_report(),
             'current_inventory': generate_current_inventory(),
-            'routing_constraints': generate_routing_constraints()
+            'routing_constraints': generate_routing_constraints(),
+            'weekly_shipment_planning': generate_weekly_shipment_planning()
         }
     
     # Calculate matrices according to your requirements
@@ -503,14 +532,14 @@ def main():
     
     st.success("✅ Data generated successfully!")
     
-    # Station Workload - No. of Batches
+    # Station Workload - No. of Batches (Smaller Chart)
     st.markdown('<div class="section-header"><h3>📊 Station Workload - No. of Batches</h3></div>', unsafe_allow_html=True)
     
     # Calculate number of batches per station
     station_workload = ppq_df['current_station'].value_counts().reset_index()
     station_workload.columns = ['station', 'batch_count']
     
-    # Create simple workload chart
+    # Create smaller workload chart
     fig_workload = px.bar(
         station_workload,
         x='station',
@@ -520,31 +549,31 @@ def main():
         color_continuous_scale='Purples'
     )
     
-    # Update layout for better visibility
+    # Update layout for smaller size
     fig_workload.update_layout(
-        height=350,
+        height=250,
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='white', size=12),
+        font=dict(color='white', size=10),
         xaxis_title='Station',
         yaxis_title='Number of Batches',
         showlegend=False,
-        margin=dict(l=50, r=50, t=50, b=50)
+        margin=dict(l=40, r=40, t=40, b=40)
     )
     
     # Update axes for better readability
     fig_workload.update_xaxes(
         tickangle=45,
-        tickfont=dict(color='white', size=10)
+        tickfont=dict(color='white', size=9)
     )
     fig_workload.update_yaxes(
-        tickfont=dict(color='white', size=10)
+        tickfont=dict(color='white', size=9)
     )
     
     # Display the chart
     st.plotly_chart(fig_workload, use_container_width=True, config={'displayModeBar': False})
     
-    # Performance Bar Chart - Simple and Clear
+    # Performance Bar Chart - Smaller Charts
     st.markdown('<div class="section-header"><h3>📊 Performance by Station</h3></div>', unsafe_allow_html=True)
     
     # Calculate station performance
@@ -558,7 +587,7 @@ def main():
     col1, col2 = st.columns(2)
     
     with col1:
-        # Total Value per Station
+        # Total Value per Station (Smaller)
         fig_value = px.bar(
             station_performance,
             x='current_station',
@@ -568,19 +597,21 @@ def main():
             color_continuous_scale='Blues'
         )
         fig_value.update_layout(
-            height=350,
+            height=250,
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='white'),
+            font=dict(color='white', size=10),
             xaxis_title='Station',
             yaxis_title='Total Value (€)',
-            showlegend=False
+            showlegend=False,
+            margin=dict(l=40, r=40, t=40, b=40)
         )
-        fig_value.update_xaxes(tickangle=45)
+        fig_value.update_xaxes(tickangle=45, tickfont=dict(color='white', size=9))
+        fig_value.update_yaxes(tickfont=dict(color='white', size=9))
         st.plotly_chart(fig_value, use_container_width=True)
     
     with col2:
-        # Average Days per Station
+        # Average Days per Station (Smaller)
         fig_days = px.bar(
             station_performance,
             x='current_station',
@@ -590,15 +621,17 @@ def main():
             color_continuous_scale='Reds'
         )
         fig_days.update_layout(
-            height=350,
+            height=250,
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='white'),
+            font=dict(color='white', size=10),
             xaxis_title='Station',
             yaxis_title='Average Days',
-            showlegend=False
+            showlegend=False,
+            margin=dict(l=40, r=40, t=40, b=40)
         )
-        fig_days.update_xaxes(tickangle=45)
+        fig_days.update_xaxes(tickangle=45, tickfont=dict(color='white', size=9))
+        fig_days.update_yaxes(tickfont=dict(color='white', size=9))
         # Add target line at 15 days
         fig_days.add_hline(y=15, line_dash="dash", line_color="yellow", 
                           annotation_text="Target: 15 days")
@@ -606,76 +639,139 @@ def main():
     
 
     
+
+    
     # Logistics
     st.markdown('<div class="section-header"><h3>📦 Logistics</h3></div>', unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
-        # Products in shipping queue (booking completed) - Money matters!
+        # Top 5 Products in shipping queue (booking completed)
         booked_items = ppq_df[ppq_df['booking_status'] == 'Booked']
-        booked_count = len(booked_items)
-        booked_value = booked_items['value_eur'].sum()
+        top_5_booked = booked_items.nlargest(5, 'value_eur')[['batch_id', 'value_eur', 'target_market', 'material']]
         
-        st.markdown(f"""
+        st.markdown("""
         <div class="metric-container">
-            <div class="metric-title">🚛 Products in Shipping Queue (Booking Completed)</div>
-            <div class="metric-value" style="color: #48bb78;">€{booked_value:,.0f}</div>
-            <div class="metric-subtitle">{booked_count} rows</div>
+            <div class="metric-title">🚛 Top 5 Products in Shipping Queue (Booking Completed)</div>
         </div>
         """, unsafe_allow_html=True)
+        
+        for idx, row in top_5_booked.iterrows():
+            st.markdown(f"""
+            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid #48bb78;">
+                <div style="color: #ffffff; font-size: 11px;">{row['batch_id']}</div>
+                <div style="color: #48bb78; font-size: 13px; font-weight: bold;">€{row['value_eur']:,.0f}</div>
+                <div style="color: #a0aec0; font-size: 10px;">{row['target_market']} | {row['material'][:15]}{'...' if len(row['material']) > 15 else ''}</div>
+            </div>
+            """, unsafe_allow_html=True)
     
     with col2:
-        # Products after packaging without customer orders - Money matters!
+        # Top 5 Products after packaging without customer orders
         no_orders = ppq_df[ppq_df['has_customer_order'] == False]
-        no_orders_count = len(no_orders)
-        no_orders_value = no_orders['value_eur'].sum()
-        avg_days_after_packaging = no_orders['days_after_packaging'].mean()
+        top_5_no_orders = no_orders.nlargest(5, 'value_eur')[['batch_id', 'value_eur', 'target_market', 'days_after_packaging']]
         
-        st.markdown(f"""
+        st.markdown("""
         <div class="metric-container">
-            <div class="metric-title">📦 Products After Packaging Without Orders</div>
-            <div class="metric-value" style="color: #f6ad55;">€{no_orders_value:,.0f}</div>
-            <div class="metric-subtitle">{no_orders_count} rows | {avg_days_after_packaging:.1f} days</div>
+            <div class="metric-title">📦 Top 5 Products After Packaging Without Orders</div>
         </div>
         """, unsafe_allow_html=True)
+        
+        for idx, row in top_5_no_orders.iterrows():
+            st.markdown(f"""
+            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid #f6ad55;">
+                <div style="color: #ffffff; font-size: 11px;">{row['batch_id']}</div>
+                <div style="color: #f6ad55; font-size: 13px; font-weight: bold;">€{row['value_eur']:,.0f}</div>
+                <div style="color: #a0aec0; font-size: 10px;">{row['target_market']} | {row['days_after_packaging']} days</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col3:
+        # Top 5 High Value Batches for Shipping
+        top_5_batches = ppq_df.nlargest(5, 'value_eur')[['batch_id', 'value_eur', 'current_station']]
+        
+        st.markdown("""
+        <div class="metric-container">
+            <div class="metric-title">Top 5 High Value Batches</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        for idx, row in top_5_batches.iterrows():
+            st.markdown(f"""
+            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid #4299e1;">
+                <div style="color: #ffffff; font-size: 12px;">{row['batch_id']}</div>
+                <div style="color: #48bb78; font-size: 14px; font-weight: bold;">€{row['value_eur']:,.0f}</div>
+                <div style="color: #a0aec0; font-size: 10px;">{row['current_station']}</div>
+            </div>
+            """, unsafe_allow_html=True)
     
     # Laboratory
     st.markdown('<div class="section-header"><h3>🔬 Laboratory</h3></div>', unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
-        # Overall Products in Queue (25% more than >14 days)
-        overall_count = len(ppq_df)
-        overall_value = ppq_df['value_eur'].sum()
+        # Top 5 Overall Products in Queue
+        top_5_overall = ppq_df.nlargest(5, 'value_eur')[['batch_id', 'value_eur', 'target_market', 'current_station']]
         
-        st.markdown(f"""
+        st.markdown("""
         <div class="metric-container">
-            <div class="metric-title">📊 Overall Products in Queue</div>
-            <div class="metric-value" style="color: #4299e1;">€{overall_value:,.0f}</div>
-            <div class="metric-subtitle">{overall_count} rows</div>
+            <div class="metric-title">📊 Top 5 Overall Products in Queue</div>
         </div>
         """, unsafe_allow_html=True)
+        
+        for idx, row in top_5_overall.iterrows():
+            st.markdown(f"""
+            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid #4299e1;">
+                <div style="color: #ffffff; font-size: 11px;">{row['batch_id']}</div>
+                <div style="color: #4299e1; font-size: 13px; font-weight: bold;">€{row['value_eur']:,.0f}</div>
+                <div style="color: #a0aec0; font-size: 10px;">{row['target_market']} | {row['current_station']}</div>
+            </div>
+            """, unsafe_allow_html=True)
     
     with col2:
-        # Products in queue over 2 weeks - Money matters!
+        # Top 5 Products in queue over 14 days
         over_14_days = ppq_df[ppq_df['days_in_queue'] > 14]
-        over_14_count = len(over_14_days)
-        over_14_value = over_14_days['value_eur'].sum()
+        top_5_over_14 = over_14_days.nlargest(5, 'value_eur')[['batch_id', 'value_eur', 'target_market', 'days_in_queue']]
         
-        st.markdown(f"""
+        st.markdown("""
         <div class="metric-container">
-            <div class="metric-title">⏰ Products in Queue >14 Days</div>
-            <div class="metric-value" style="color: #f56565;">€{over_14_value:,.0f}</div>
-            <div class="metric-subtitle">{over_14_count} rows</div>
+            <div class="metric-title">⏰ Top 5 Products in Queue >14 Days</div>
         </div>
         """, unsafe_allow_html=True)
+        
+        for idx, row in top_5_over_14.iterrows():
+            st.markdown(f"""
+            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid #f56565;">
+                <div style="color: #ffffff; font-size: 11px;">{row['batch_id']}</div>
+                <div style="color: #f56565; font-size: 13px; font-weight: bold;">€{row['value_eur']:,.0f}</div>
+                <div style="color: #a0aec0; font-size: 10px;">{row['target_market']} | {row['days_in_queue']} days</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col3:
+        # Top 5 Longest Queue Items
+        top_5_longest = ppq_df.nlargest(5, 'days_in_queue')[['batch_id', 'days_in_queue', 'current_station']]
+        
+        st.markdown("""
+        <div class="metric-container">
+            <div class="metric-title">⏳ Top 5 Longest Queue Items</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        for idx, row in top_5_longest.iterrows():
+            st.markdown(f"""
+            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid #f56565;">
+                <div style="color: #ffffff; font-size: 12px;">{row['batch_id']}</div>
+                <div style="color: #f56565; font-size: 14px; font-weight: bold;">{row['days_in_queue']} days</div>
+                <div style="color: #a0aec0; font-size: 10px;">{row['current_station']}</div>
+            </div>
+            """, unsafe_allow_html=True)
     
     # Service Level
     st.markdown('<div class="section-header"><h3>📈 Service Level</h3></div>', unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         # Expected OTIF at end of month
@@ -690,23 +786,48 @@ def main():
         """, unsafe_allow_html=True)
     
     with col2:
-        # Exception/at-risk rows - Money matters!
+        # Top 5 Exception/at-risk products
         at_risk_items = ppq_df[ppq_df['days_in_queue'] > 25]
-        at_risk_count = len(at_risk_items)
-        at_risk_value = at_risk_items['value_eur'].sum()
+        top_5_at_risk = at_risk_items.nlargest(5, 'value_eur')[['batch_id', 'value_eur', 'target_market', 'days_in_queue']]
         
-        st.markdown(f"""
+        st.markdown("""
         <div class="metric-container">
-            <div class="metric-title">⚠️ Exception/At-Risk Rows</div>
-            <div class="metric-value" style="color: #f56565;">€{at_risk_value:,.0f}</div>
-            <div class="metric-subtitle">{at_risk_count} rows | Reason: Investigation</div>
+            <div class="metric-title">⚠️ Top 5 Exception/At-Risk Products</div>
         </div>
         """, unsafe_allow_html=True)
+        
+        for idx, row in top_5_at_risk.iterrows():
+            st.markdown(f"""
+            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid #f56565;">
+                <div style="color: #ffffff; font-size: 11px;">{row['batch_id']}</div>
+                <div style="color: #f56565; font-size: 13px; font-weight: bold;">€{row['value_eur']:,.0f}</div>
+                <div style="color: #a0aec0; font-size: 10px;">{row['target_market']} | {row['days_in_queue']} days</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col3:
+        # Top 5 Customers by OTIF Performance
+        customer_otif = otif_df.groupby('customer_name')['otif_percentage'].mean().sort_values(ascending=False).head(5)
+        
+        st.markdown("""
+        <div class="metric-container">
+            <div class="metric-title">Top 5 Customers by OTIF</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        for customer, otif_score in customer_otif.items():
+            color = '#48bb78' if otif_score >= 80 else '#f56565'
+            st.markdown(f"""
+            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid {color};">
+                <div style="color: #ffffff; font-size: 11px;">{customer[:20]}{'...' if len(customer) > 20 else ''}</div>
+                <div style="color: {color}; font-size: 14px; font-weight: bold;">{otif_score:.1f}%</div>
+            </div>
+            """, unsafe_allow_html=True)
     
     # Inventory
     st.markdown('<div class="section-header"><h3>📊 Inventory</h3></div>', unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         # Current inventory (higher - before optimization)
@@ -732,6 +853,25 @@ def main():
             <div class="metric-subtitle">Savings: €{savings:,.0f} | 30% reduction</div>
         </div>
         """, unsafe_allow_html=True)
+    
+    with col3:
+        # Top 5 High Value Inventory Items
+        top_5_inventory = inventory_df.nlargest(5, 'value_eur')[['material', 'value_eur', 'location', 'quantity_doses']]
+        
+        st.markdown("""
+        <div class="metric-container">
+            <div class="metric-title">Top 5 High Value Inventory Items</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        for idx, row in top_5_inventory.iterrows():
+            st.markdown(f"""
+            <div style="background: #2d3748; padding: 8px; margin: 2px 0; border-radius: 5px; border-left: 3px solid #4299e1;">
+                <div style="color: #ffffff; font-size: 11px;">{row['material'][:20]}{'...' if len(row['material']) > 20 else ''}</div>
+                <div style="color: #4299e1; font-size: 13px; font-weight: bold;">€{row['value_eur']:,.0f}</div>
+                <div style="color: #a0aec0; font-size: 10px;">{row['location']} | {row['quantity_doses']:,.0f} doses</div>
+            </div>
+            """, unsafe_allow_html=True)
     
 
     
