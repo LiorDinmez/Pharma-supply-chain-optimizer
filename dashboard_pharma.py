@@ -742,7 +742,7 @@ def main():
         # Load optimization data
         try:
             batches_df = pd.read_csv('batches_v2.csv')
-            routes_df = pd.read_csv('routes_v2.csv.csv')
+            routes_df = pd.read_csv('routes_v2.csv')
             
             col1, col2 = st.columns(2)
             
@@ -946,10 +946,10 @@ def main():
                     
                     except Exception as e:
                         st.error(f"❌ Optimization failed: {str(e)}")
-                        st.info("💡 Make sure the CSV files (batches_v2.csv and routes_v2.csv.csv) are in the same directory as the dashboard.")
+                                                        st.info("💡 Make sure the CSV files (batches_v2.csv and routes_v2.csv) are in the same directory as the dashboard.")
         except FileNotFoundError:
             st.error("❌ Optimization data files not found!")
-            st.info("💡 Please ensure 'batches_v2.csv' and 'routes_v2.csv.csv' are in the same directory as the dashboard.")
+            st.info("💡 Please ensure 'batches_v2.csv' and 'routes_v2.csv' are in the same directory as the dashboard.")
         except Exception as e:
             st.error(f"❌ Error loading optimization data: {str(e)}")
     else:
