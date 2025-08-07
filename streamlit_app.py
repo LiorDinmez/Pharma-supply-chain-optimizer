@@ -1,616 +1,529 @@
-"""
-Pharmaceutical Supply Chain Optimization Dashboard
-=================================================
-Clean, working Streamlit interface for your AdvancedOptimizationEngine
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
-from datetime import datetime
-import time
+import random
+import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime, timedelta
+import io
+import zipfile
+import sys
+import os
 
-# Import your optimization service
+# Fixed optimization import
 try:
-    from optimization import get_optimization_service
+    from optimization_engine_v2 import AdvancedOptimizationEngine
     OPTIMIZATION_AVAILABLE = True
 except ImportError as e:
-    st.error(f"Cannot import optimization service: {e}")
     OPTIMIZATION_AVAILABLE = False
-
-# Import Plotly with fallback
-try:
-    import plotly.express as px
-    import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
-    PLOTLY_AVAILABLE = True
-except ImportError:
-    PLOTLY_AVAILABLE = False
 
 # Page configuration
 st.set_page_config(
-    page_title="🏭 Pharma Supply Chain Optimizer",
+    page_title="Pharma Supply Chain POC",
     page_icon="🏭",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# Enhanced CSS
+# Your existing CSS
 st.markdown("""
 <style>
+    .stApp {
+        background-color: #1e1e1e;
+        color: #ffffff;
+    }
     .main-header {
-        font-size: 3rem;
-        font-weight: bold;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    
-    .metric-card {
-        background: white;
-        padding: 1.5rem;
+        background: linear-gradient(90deg, #2d3748 0%, #4a5568 100%);
+        padding: 20px;
         border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        margin: 1rem 0;
-        border-left: 4px solid #667eea;
+        color: #ffffff;
+        text-align: center;
+        margin-bottom: 30px;
     }
-    
-    .success-box {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-        color: white;
-        padding: 1rem;
-        border-radius: 8px;
-        margin: 1rem 0;
+    .metric-container {
+        background: #2d3748;
+        padding: 20px;
+        border-radius: 10px;
+        border-right: 4px solid #4299e1;
+        margin: 10px 0;
+        color: #ffffff;
     }
-    
-    .warning-box {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        color: white;
-        padding: 1rem;
-        border-radius: 8px;
-        margin: 1rem 0;
+    .metric-title {
+        font-size: 16px;
+        color: #a0aec0;
+        margin: 0 0 10px 0;
+        font-weight: 600;
     }
-    
-    .info-box {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        color: white;
-        padding: 1rem;
+    .metric-value {
+        font-size: 32px;
+        font-weight: bold;
+        margin: 10px 0;
+        text-align: center;
+    }
+    .metric-subtitle {
+        font-size: 14px;
+        color: #a0aec0;
+        margin: 5px 0 0 0;
+    }
+    .section-header {
+        background: #2d3748;
+        padding: 15px;
         border-radius: 8px;
-        margin: 1rem 0;
+        margin: 20px 0 10px 0;
+        border-right: 4px solid #48bb78;
+    }
+    .section-header h3 {
+        color: #ffffff;
+        margin: 0;
+        font-size: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-def main():
-    """Main application"""
-    
-    # Header
-    st.markdown('<div class="main-header">🏭 Pharmaceutical Supply Chain Optimizer</div>', unsafe_allow_html=True)
-    
-    st.markdown("""
-    **Advanced optimization engine** for pharmaceutical supply chain management with:
-    - 🎯 Multi-objective optimization (Cost vs Priority vs Transit Time)
-    - 📊 Monte Carlo risk assessment with 2000+ iterations  
-    - 🚚 Dual capacity constraints (Weight & Volume)
-    - 📈 OTIF compliance monitoring
-    - 💾 Persistent KPI tracking
-    """)
-    
-    if not OPTIMIZATION_AVAILABLE:
-        st.error("❌ Optimization engine not available. Please check your files.")
-        return
-    
-    # Initialize service
-    opt_service = get_optimization_service()
-    
-    # Sidebar configuration
-    with st.sidebar:
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                   padding: 1.5rem; border-radius: 10px; margin-bottom: 2rem; color: white; text-align: center;">
-            <h3 style="color: white; margin: 0;">⚙️ Control Panel</h3>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Data source
-        st.subheader("📂 Data Source")
-        data_source = st.radio(
-            "Choose data source:",
-            ["🎯 Sample Data", "📄 Upload Files"]
-        )
-        
-        # Optimization parameters
-        st.subheader("🎛️ Parameters")
-        
-        alpha = st.slider(
-            "Priority Weight (α)",
-            min_value=0.001,
-            max_value=0.1,
-            value=0.01,
-            step=0.001,
-            help="Higher values prioritize delivery time over cost"
-        )
-        
-        max_transit = st.slider(
-            "Max Transit Days",
-            min_value=7,
-            max_value=30,
-            value=21
-        )
-        
-        min_otif = st.slider(
-            "Target OTIF Rate",
-            min_value=0.5,
-            max_value=1.0,
-            value=0.8,
-            step=0.05,
-            format="%.0%"
-        )
-        
-        constraints = {
-            'alpha': alpha,
-            'max_transit_days': max_transit,
-            'min_otif_rate': min_otif
-        }
-    
-    # Main tabs
-    tab1, tab2, tab3 = st.tabs(["🚀 Optimization", "📊 Dashboard", "📈 History"])
-    
-    with tab1:
-        optimization_tab(opt_service, data_source, constraints)
-    
-    with tab2:
-        dashboard_tab(opt_service)
-    
-    with tab3:
-        history_tab(opt_service)
+# Header
+st.markdown("""
+<div class="main-header">
+    <h1>🏭 Pharmaceutical Supply Chain POC</h1>
+    <p>AI-Powered Supply Chain Management System</p>
+</div>
+""", unsafe_allow_html=True)
 
-def optimization_tab(opt_service, data_source, constraints):
-    """Main optimization interface"""
+@st.cache_data
+def generate_post_pack_queue():
+    """Post Pack Queue - 150 rows"""
+    products = [
+        'ZONISAMIDE 25MG', 'LAMOTRIGINE TABLETS', 'CARBAMAZEPINE 200MG',
+        'GABAPENTIN 300MG', 'PREGABALIN 75MG', 'TOPIRAMATE 100MG',
+        'LEVETIRACETAM 500MG', 'VALPROATE 250MG', 'PHENYTOIN 100MG'
+    ]
     
-    st.header("🚀 Supply Chain Optimization")
+    markets = ['DE', 'HU', 'FR', 'IT', 'ES', 'NL', 'BE', 'AT', 'PL']
+    stations = ['PROD', 'PACK', 'QA-MFG', 'QA-PCK', 'QC', 'SC', 'Regulation/Launch', 'Shipping']
+    delay_reasons = ['Investigation', 'Documentation', 'Equipment_Issue', 'External_Lab_Dependency', 'None']
     
-    # Load data
-    try:
-        if data_source == "🎯 Sample Data":
-            with st.spinner("Loading sample data..."):
-                batches_df, routes_df = opt_service.load_sample_data()
-            
-            st.markdown("""
-            <div class="success-box">
-                <h4 style="margin: 0 0 0.5rem 0;">✅ Sample Data Loaded Successfully!</h4>
-                <p style="margin: 0; opacity: 0.9;">Realistic pharmaceutical batch and route data ready for optimization.</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
+    data = []
+    for i in range(1, 151):
+        batch_id = f"200016{4800 + i}"
+        material = random.choice(products)
+        quantity = random.randint(300000, 1500000)
+        value = random.randint(40000, 160000)
+        market = random.choice(markets)
+        weight_kg = random.uniform(200, 1000)
+        volume_m3 = random.uniform(1.5, 6.0)
+        
+        # Station distribution
+        station_choice = random.random()
+        if station_choice < 0.05:
+            station = 'SC'
+        elif station_choice < 0.10:
+            station = 'Regulation/Launch'
+            value = random.randint(80000, 250000)
         else:
-            st.subheader("📤 Upload Your Data")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                batch_file = st.file_uploader("Batch Data (CSV)", type=['csv'])
-            with col2:
-                route_file = st.file_uploader("Route Data (CSV)", type=['csv'])
-            
-            if batch_file and route_file:
-                batches_df = pd.read_csv(batch_file)
-                routes_df = pd.read_csv(route_file)
-                st.success("✅ Files uploaded successfully!")
-            else:
-                st.info("Please upload both batch and route CSV files.")
-                return
+            station = random.choice(['PROD', 'PACK', 'QA-MFG', 'QA-PCK', 'QC', 'Shipping'])
         
-        # Validate data
-        validation = opt_service.validate_data(batches_df, routes_df)
+        # Days in queue
+        if random.random() < 0.7:
+            days_in_queue = random.randint(8, 25)
+            delay_reason = 'None'
+        else:
+            days_in_queue = random.randint(40, 70)
+            delay_reason = random.choice([r for r in delay_reasons if r != 'None'])
         
-        if not validation['valid']:
-            st.markdown('<div class="warning-box"><h4>❌ Data Validation Failed</h4></div>', unsafe_allow_html=True)
-            for error in validation['errors']:
-                st.error(f"• {error}")
-            return
+        packaging_date = (datetime.now() - timedelta(days=random.randint(1, 30))).strftime('%Y-%m-%d')
+        expected_release = (datetime.now() + timedelta(days=random.randint(1, 45))).strftime('%Y-%m-%d')
         
-        # Display summary
-        display_data_summary(validation['summary'])
+        # Customer orders
+        if random.random() < 0.5:
+            has_customer_order = True
+            days_after_packaging = 0
+            booking_status = 'Booked'
+        else:
+            has_customer_order = False
+            days_after_packaging = random.randint(1, 30)
+            booking_status = 'Pending'
         
-        # Data preview
-        with st.expander("📋 Data Preview"):
-            preview_tab1, preview_tab2 = st.tabs(["Batch Data", "Route Data"])
-            
-            with preview_tab1:
-                st.dataframe(batches_df.head(), use_container_width=True)
-            
-            with preview_tab2:
-                st.dataframe(routes_df.head(), use_container_width=True)
-        
-        # Run optimization
-        st.markdown("---")
-        st.subheader("🎯 Execute Optimization")
-        
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            if st.button("🚀 **OPTIMIZE SUPPLY CHAIN**", type="primary", use_container_width=True):
-                run_optimization(opt_service, batches_df, routes_df, constraints)
-        
-        with col2:
-            if st.button("📊 View Results", use_container_width=True):
-                if 'optimization_results' in st.session_state:
-                    st.info("Switch to Dashboard tab to view results")
-                else:
-                    st.warning("Run optimization first")
+        data.append({
+            'batch_id': batch_id,
+            'material': material,
+            'quantity_doses': quantity,
+            'value_eur': value,
+            'weight_kg': weight_kg,
+            'volume_m3': volume_m3,
+            'packaging_completion_date': packaging_date,
+            'current_station': station,
+            'target_market': market,
+            'expected_release_date': expected_release,
+            'delay_reason': delay_reason,
+            'days_in_queue': days_in_queue,
+            'has_customer_order': has_customer_order,
+            'days_after_packaging': days_after_packaging,
+            'booking_status': booking_status
+        })
     
-    except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
-        st.info("Check that your sample_data folder contains the CSV files")
+    return pd.DataFrame(data)
 
-def display_data_summary(summary):
-    """Display data summary with metrics"""
+@st.cache_data
+def generate_routes_for_optimization():
+    """Generate routes data compatible with optimization engine"""
+    data = []
+    for i in range(1, 16):
+        route_id = f"RT-{i:03d}"
+        origin = random.choice(['Production_EU', 'Packaging_US', 'Testing_APAC'])
+        destination = random.choice(['North_America', 'Europe', 'Asia_Pacific', 'Latin_America'])
+        mode = random.choice(['Air_Express', 'Air_Standard', 'Ground_Express', 'Ground_Standard', 'Ocean_Standard'])
+        capacity_kg = random.randint(5000, 35000)
+        capacity_m3 = random.randint(25, 200)
+        cost_per_kg = round(random.uniform(1.5, 15.0), 2)
+        transit_days = random.randint(1, 25)
+        
+        data.append({
+            'route_id': route_id,
+            'origin': origin,
+            'destination_region': destination,
+            'transport_mode': mode,
+            'capacity_kg': capacity_kg,
+            'capacity_m3': capacity_m3,
+            'cost_per_kg': cost_per_kg,
+            'transit_days': transit_days
+        })
     
-    st.subheader("📊 Data Overview")
+    return pd.DataFrame(data)
+
+def main():
+    # Week info
+    today = datetime.now().date()
+    week_number = today.isocalendar()[1]
+    year = today.year
+    import calendar
+    last_day_of_month = calendar.monthrange(year, today.month)[1]
+    days_remaining = last_day_of_month - today.day
     
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric(
-            "Total Batches",
-            f"{summary['total_batches']:,}",
-            help="Number of pharmaceutical batches"
-        )
-    
-    with col2:
-        st.metric(
-            "Total Value", 
-            f"€{summary['total_value_eur']:,.0f}",
-            help="Combined value of all batches"
-        )
-    
-    with col3:
-        st.metric(
-            "Avg Queue Time",
-            f"{summary['avg_days_in_queue']:.1f} days",
-            help="Average days batches have been waiting"
-        )
-    
-    with col4:
-        st.metric(
-            "Critical Batches",
-            f"{summary['critical_batches']}",
-            help="Batches requiring investigation"
-        )
-    
-    # Transport modes
-    modes = ", ".join(summary['available_transport_modes'])
     st.markdown(f"""
-    <div class="info-box">
-        <strong>🚚 Available Transport Modes:</strong> {modes}
+    <div style="background: linear-gradient(90deg, #1f2937 0%, #374151 100%); 
+                padding: 20px; 
+                border-radius: 10px; 
+                margin-bottom: 20px;
+                border-left: 5px solid #3b82f6;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h2 style="color: white; margin: 0; font-size: 24px;">📅 Week {week_number}, {year}</h2>
+                <p style="color: #9ca3af; margin: 5px 0 0 0; font-size: 16px;">Current Date: {today.strftime('%B %d, %Y')}</p>
+            </div>
+            <div style="text-align: left;">
+                <h3 style="color: #fbbf24; margin: 0; font-size: 28px;">⏰ {days_remaining} days</h3>
+                <p style="color: #9ca3af; margin: 5px 0 0 0; font-size: 14px;">Remaining in {today.strftime('%B')}</p>
+            </div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
-
-def run_optimization(opt_service, batches_df, routes_df, constraints):
-    """Execute optimization with progress tracking"""
     
-    progress_container = st.container()
+    # Generate data
+    with st.spinner("🔄 Generating data..."):
+        ppq_df = generate_post_pack_queue()
+        routes_df = generate_routes_for_optimization()
     
-    with progress_container:
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                   padding: 2rem; border-radius: 10px; color: white; text-align: center; margin: 1rem 0;">
-            <h3 style="color: white; margin: 0;">🚀 Optimization Engine Running</h3>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
-        steps = [
-            "🔍 Validating input data...",
-            "📊 Creating batch and route objects...",
-            "🎯 Running OR-Tools optimization...", 
-            "📦 Optimizing container packing...",
-            "🚚 Calculating optimal routes...",
-            "🎲 Monte Carlo risk assessment...",
-            "📈 OTIF compliance validation...",
-            "💾 Saving results and KPIs...",
-            "✅ Optimization completed!"
-        ]
-        
-        try:
-            for i, step in enumerate(steps[:-1]):
-                status_text.markdown(f"**{step}**")
-                progress_bar.progress((i + 1) / len(steps))
-                time.sleep(0.5)
-            
-            # Run actual optimization
-            results = opt_service.run_optimization(batches_df, routes_df, constraints)
-            
-            # Final step
-            status_text.markdown(f"**{steps[-1]}**")
-            progress_bar.progress(1.0)
-            
-            # Store results
-            st.session_state['optimization_results'] = results
-            st.session_state['optimization_timestamp'] = datetime.now()
-            
-            # Clear progress
-            progress_bar.empty()
-            status_text.empty()
-            
-            st.balloons()
-            
-            st.markdown("""
-            <div class="success-box">
-                <h3 style="margin: 0 0 1rem 0;">🎉 Optimization Completed Successfully!</h3>
-                <p style="margin: 0;">Advanced algorithms with Monte Carlo simulation have optimized your supply chain.</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Display results
-            display_optimization_results(results)
-            
-        except Exception as e:
-            progress_bar.empty()
-            status_text.empty()
-            st.error(f"❌ Optimization failed: {str(e)}")
-
-def display_optimization_results(results):
-    """Display optimization results"""
+    st.success("✅ Data generated successfully!")
     
-    st.subheader("🎯 Optimization Results")
+    # Station Workload
+    st.markdown('<div class="section-header"><h3>📊 Station Workload - No. of Batches</h3></div>', unsafe_allow_html=True)
     
-    kpis = results['kpis']
-    risk = results['risk_analysis']
-    otif = results['otif_compliance']
+    station_workload = ppq_df['current_station'].value_counts().reset_index()
+    station_workload.columns = ['station', 'batch_count']
     
-    # Key metrics
-    col1, col2, col3, col4 = st.columns(4)
+    fig_workload = px.bar(
+        station_workload,
+        x='station',
+        y='batch_count',
+        title='Number of Batches Pending by Station',
+        color='batch_count',
+        color_continuous_scale='Purples'
+    )
     
-    with col1:
-        cost_reduction = (1 - kpis.get('cost_ratio', 1)) * 100
-        st.metric(
-            "Cost Reduction",
-            f"{cost_reduction:.1f}%",
-            f"€{kpis.get('total_cost_eur', 0):,.0f} total"
-        )
+    fig_workload.update_layout(
+        height=350,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='white', size=12),
+        xaxis_title='Station',
+        yaxis_title='Number of Batches',
+        showlegend=False
+    )
     
-    with col2:
-        utilization = kpis.get('avg_container_utilization', 0) * 100
-        st.metric(
-            "Container Utilization",
-            f"{utilization:.1f}%",
-            "Efficiency improved"
-        )
+    st.plotly_chart(fig_workload, use_container_width=True, config={'displayModeBar': False})
     
-    with col3:
-        otif_score = risk.get('otif_statistics', {}).get('mean', 0) * 100
-        st.metric(
-            "OTIF Score",
-            f"{otif_score:.1f}%",
-            "On-Time In-Full"
-        )
+    # Performance by Station
+    st.markdown('<div class="section-header"><h3>📊 Performance by Station</h3></div>', unsafe_allow_html=True)
     
-    with col4:
-        risk_score = risk.get('risk_score', 0)
-        st.metric(
-            "Risk Score",
-            f"{risk_score:.1f}/100",
-            "Lower is better"
-        )
+    station_performance = ppq_df.groupby('current_station').agg({
+        'value_eur': 'sum',
+        'days_in_queue': 'mean'
+    }).round(1)
+    station_performance.columns = ['total_value', 'avg_days']
+    station_performance = station_performance.reset_index()
     
-    # Shipment plan
-    with st.expander("📋 Detailed Shipment Plan", expanded=True):
-        plan_df = pd.DataFrame(results['optimized_plan'])
-        if not plan_df.empty:
-            st.dataframe(plan_df, use_container_width=True)
-            
-            # Export options
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                csv_data = opt_service.export_results(results, 'csv')
-                st.download_button(
-                    "📥 Download CSV",
-                    data=csv_data,
-                    file_name=f"optimization_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                    mime="text/csv"
-                )
-            
-            with col2:
-                summary_data = opt_service.export_results(results, 'summary')
-                st.download_button(
-                    "📄 Download Summary",
-                    data=summary_data,
-                    file_name=f"optimization_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                    mime="text/plain"
-                )
-
-def dashboard_tab(opt_service):
-    """Dashboard with visualizations"""
-    
-    st.header("📊 Analytics Dashboard")
-    
-    if 'optimization_results' not in st.session_state:
-        st.markdown("""
-        <div class="info-box">
-            <h4 style="margin: 0 0 1rem 0;">🎯 Ready for Analytics</h4>
-            <p style="margin: 0;">Run an optimization first to see advanced analytics and visualizations.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        return
-    
-    results = st.session_state['optimization_results']
-    timestamp = st.session_state.get('optimization_timestamp', datetime.now())
-    
-    st.info(f"📅 **Last optimization:** {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
-    
-    # Create visualizations
-    if PLOTLY_AVAILABLE:
-        create_plotly_charts(results)
-    else:
-        create_basic_charts(results)
-
-def create_plotly_charts(results):
-    """Create Plotly visualizations"""
-    
-    kpis = results['kpis']
-    plan = results.get('optimized_plan', [])
-    
-    if not plan:
-        st.warning("No plan data available for visualization")
-        return
-    
-    plan_df = pd.DataFrame(plan)
-    
-    # Container utilization
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("🚛 Container Utilization")
-        
-        fig = go.Figure()
-        fig.add_trace(go.Bar(
-            name='Weight Utilization',
-            x=plan_df['container_id'],
-            y=plan_df['utilization_weight'] * 100,
-            marker_color='rgba(102, 126, 234, 0.8)'
-        ))
-        fig.add_trace(go.Bar(
-            name='Volume Utilization',
-            x=plan_df['container_id'],
-            y=plan_df['utilization_volume'] * 100,
-            marker_color='rgba(255, 127, 14, 0.8)'
-        ))
-        
-        fig.update_layout(
-            xaxis_title="Container ID",
-            yaxis_title="Utilization (%)",
-            barmode='group',
-            height=400
+        fig_value = px.bar(
+            station_performance,
+            x='current_station',
+            y='total_value',
+            title='Total Value by Station (€)',
+            color='total_value',
+            color_continuous_scale='Blues'
         )
-        st.plotly_chart(fig, use_container_width=True)
+        fig_value.update_layout(
+            height=350,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='white'),
+            showlegend=False
+        )
+        fig_value.update_xaxes(tickangle=45)
+        st.plotly_chart(fig_value, use_container_width=True)
     
     with col2:
-        st.subheader("🚚 Transport Mode Distribution")
-        
-        mode_counts = plan_df['transport_mode'].value_counts()
-        fig = px.pie(
-            values=mode_counts.values,
-            names=mode_counts.index,
-            title="Containers by Transport Mode"
+        fig_days = px.bar(
+            station_performance,
+            x='current_station',
+            y='avg_days',
+            title='Average Days in Queue by Station',
+            color='avg_days',
+            color_continuous_scale='Reds'
         )
-        fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        fig_days.update_layout(
+            height=350,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='white'),
+            showlegend=False
+        )
+        fig_days.update_xaxes(tickangle=45)
+        fig_days.add_hline(y=15, line_dash="dash", line_color="yellow", 
+                          annotation_text="Target: 15 days")
+        st.plotly_chart(fig_days, use_container_width=True)
     
-    # Cost analysis
-    st.subheader("💰 Cost Analysis")
+    # Logistics KPIs
+    st.markdown('<div class="section-header"><h3>📦 Logistics</h3></div>', unsafe_allow_html=True)
     
-    fig = px.scatter(
-        plan_df,
-        x='utilization_weight',
-        y='route_cost_eur',
-        size='num_batches',
-        color='transport_mode',
-        title='Cost vs Utilization Analysis'
-    )
-    fig.update_layout(height=500)
-    st.plotly_chart(fig, use_container_width=True)
-
-def create_basic_charts(results):
-    """Basic charts without Plotly"""
+    col1, col2 = st.columns(2)
     
-    plan = results.get('optimized_plan', [])
-    if not plan:
-        st.warning("No plan data available")
-        return
-    
-    plan_df = pd.DataFrame(plan)
-    
-    st.subheader("📊 Container Performance")
-    
-    # Utilization chart
-    chart_data = plan_df[['container_id', 'utilization_weight', 'utilization_volume']].set_index('container_id')
-    chart_data = chart_data * 100  # Convert to percentage
-    st.bar_chart(chart_data)
-    
-    # Transport mode breakdown
-    st.subheader("🚚 Transport Mode Usage")
-    mode_counts = plan_df['transport_mode'].value_counts()
-    st.bar_chart(mode_counts)
-
-def history_tab(opt_service):
-    """Historical performance tracking"""
-    
-    st.header("📈 Optimization History")
-    
-    history_df = opt_service.get_optimization_history()
-    
-    if history_df.empty:
-        st.markdown("""
-        <div class="info-box">
-            <h4 style="margin: 0 0 1rem 0;">📊 Performance Tracking</h4>
-            <p style="margin: 0;">No optimization history yet. Run optimizations to see performance trends over time.</p>
+    with col1:
+        booked_items = ppq_df[ppq_df['booking_status'] == 'Booked']
+        booked_count = len(booked_items)
+        booked_value = booked_items['value_eur'].sum()
+        
+        st.markdown(f"""
+        <div class="metric-container">
+            <div class="metric-title">🚛 Products in Shipping Queue (Booking Completed)</div>
+            <div class="metric-value" style="color: #48bb78;">€{booked_value:,.0f}</div>
+            <div class="metric-subtitle">{booked_count} rows</div>
         </div>
         """, unsafe_allow_html=True)
-        return
     
-    # Display trends
-    st.subheader("📊 Performance Trends")
+    with col2:
+        no_orders = ppq_df[ppq_df['has_customer_order'] == False]
+        no_orders_count = len(no_orders)
+        no_orders_value = no_orders['value_eur'].sum()
+        avg_days_after_packaging = no_orders['days_after_packaging'].mean()
+        
+        st.markdown(f"""
+        <div class="metric-container">
+            <div class="metric-title">📦 Products After Packaging Without Orders</div>
+            <div class="metric-value" style="color: #f6ad55;">€{no_orders_value:,.0f}</div>
+            <div class="metric-subtitle">{no_orders_count} rows | {avg_days_after_packaging:.1f} days</div>
+        </div>
+        """, unsafe_allow_html=True)
     
-    if PLOTLY_AVAILABLE:
-        fig = make_subplots(
-            rows=2, cols=2,
-            subplot_titles=('Total Cost', 'Cost Efficiency', 'Container Utilization', 'Cycle Time')
-        )
+    # Laboratory
+    st.markdown('<div class="section-header"><h3>🔬 Laboratory</h3></div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        overall_count = len(ppq_df)
+        overall_value = ppq_df['value_eur'].sum()
         
-        fig.add_trace(go.Scatter(
-            x=history_df['run_number'], 
-            y=history_df['total_cost'],
-            mode='lines+markers',
-            name='Total Cost'
-        ), row=1, col=1)
+        st.markdown(f"""
+        <div class="metric-container">
+            <div class="metric-title">📊 Overall Products in Queue</div>
+            <div class="metric-value" style="color: #4299e1;">€{overall_value:,.0f}</div>
+            <div class="metric-subtitle">{overall_count} rows</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        over_14_days = ppq_df[ppq_df['days_in_queue'] > 14]
+        over_14_count = len(over_14_days)
+        over_14_value = over_14_days['value_eur'].sum()
         
-        fig.add_trace(go.Scatter(
-            x=history_df['run_number'], 
-            y=history_df['cost_ratio']*100,
-            mode='lines+markers', 
-            name='Cost Efficiency'
-        ), row=1, col=2)
+        st.markdown(f"""
+        <div class="metric-container">
+            <div class="metric-title">⏰ Products in Queue >14 Days</div>
+            <div class="metric-value" style="color: #f56565;">€{over_14_value:,.0f}</div>
+            <div class="metric-subtitle">{over_14_count} rows</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Service Level
+    st.markdown('<div class="section-header"><h3>📈 Service Level</h3></div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        current_month_otif = 78.5  # Sample OTIF
         
-        fig.add_trace(go.Scatter(
-            x=history_df['run_number'], 
-            y=history_df['container_util']*100,
-            mode='lines+markers',
-            name='Utilization'
-        ), row=2, col=1)
+        st.markdown(f"""
+        <div class="metric-container">
+            <div class="metric-title">🎯 Expected OTIF End of Month</div>
+            <div class="metric-value" style="color: {'#48bb78' if current_month_otif >= 80 else '#f56565'};">{current_month_otif:.1f}%</div>
+            <div class="metric-subtitle">Target: 80%</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        at_risk_items = ppq_df[ppq_df['days_in_queue'] > 25]
+        at_risk_count = len(at_risk_items)
+        at_risk_value = at_risk_items['value_eur'].sum()
         
-        fig.add_trace(go.Scatter(
-            x=history_df['run_number'], 
-            y=history_df['cycle_improve']*100,
-            mode='lines+markers',
-            name='Cycle Time'
-        ), row=2, col=2)
+        st.markdown(f"""
+        <div class="metric-container">
+            <div class="metric-title">⚠️ Exception/At-Risk Rows</div>
+            <div class="metric-value" style="color: #f56565;">€{at_risk_value:,.0f}</div>
+            <div class="metric-subtitle">{at_risk_count} rows | Reason: Investigation</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Inventory
+    st.markdown('<div class="section-header"><h3>📊 Inventory</h3></div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        current_inventory_value = ppq_df['value_eur'].sum() * 1.2
         
-        fig.update_layout(height=600, showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.markdown(f"""
+        <div class="metric-container">
+            <div class="metric-title">💰 Current Inventory</div>
+            <div class="metric-value" style="color: #f56565;">€{current_inventory_value:,.0f}</div>
+            <div class="metric-subtitle">High inventory - Slow cycle time</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        optimized_inventory_value = int(current_inventory_value * 0.7)
+        savings = current_inventory_value - optimized_inventory_value
+        
+        st.markdown(f"""
+        <div class="metric-container">
+            <div class="metric-title">📅 Expected Inventory End of Month</div>
+            <div class="metric-value" style="color: #48bb78;">€{optimized_inventory_value:,.0f}</div>
+            <div class="metric-subtitle">Savings: €{savings:,.0f} | 30% reduction</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # FIXED OPTIMIZATION ENGINE
+    if OPTIMIZATION_AVAILABLE:
+        st.markdown('<div class="section-header"><h3>🚀 Supply Chain Optimization</h3></div>', unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**📊 Batch Data Preview:**")
+            st.dataframe(ppq_df.head(), use_container_width=True)
+        
+        with col2:
+            st.markdown("**🛣️ Routes Data Preview:**")
+            st.dataframe(routes_df.head(), use_container_width=True)
+        
+        # Optimization parameters
+        st.markdown("**⚙️ Optimization Parameters:**")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            alpha = st.slider("Risk Weight (α)", 0.0, 0.1, 0.01, 0.001)
+        
+        with col2:
+            max_transit = st.slider("Max Transit Days", 7, 30, 21)
+        
+        with col3:
+            monte_carlo_iter = st.slider("Monte Carlo Iterations", 500, 5000, 2000, 500)
+        
+        # Run optimization
+        if st.button("🚀 Run Optimization", type="primary"):
+            with st.spinner("Running optimization engine..."):
+                try:
+                    engine = AdvancedOptimizationEngine()
+                    
+                    constraints = {
+                        "alpha": alpha,
+                        "max_transit_days": max_transit,
+                        "min_otif_rate": 0.8
+                    }
+                    
+                    result = engine.optimize_shipment_plan(ppq_df, routes_df, constraints)
+                    
+                    st.success("✅ Optimization completed successfully!")
+                    
+                    # KPIs
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        st.metric(
+                            "Total Cost (€)",
+                            f"€{result['kpis'].get('total_cost_eur', 0):,.0f}",
+                            delta=f"{result['kpis'].get('cost_ratio', 0):.1%}"
+                        )
+                    
+                    with col2:
+                        st.metric(
+                            "Container Utilization",
+                            f"{result['kpis'].get('avg_container_utilization', 0):.1%}",
+                            delta="+5.2%"
+                        )
+                    
+                    with col3:
+                        st.metric(
+                            "Cycle Time Improvement",
+                            f"{result['kpis'].get('cycle_time_improvement', 0):.1%}",
+                            delta="+12.8%"
+                        )
+                    
+                    with col4:
+                        risk_score = result['risk_analysis'].get('risk_score', 0)
+                        st.metric(
+                            "Risk Score",
+                            f"{risk_score:.1f}",
+                            delta="Low Risk" if risk_score < 30 else "High Risk"
+                        )
+                    
+                    # Optimization plan
+                    st.markdown("**📋 Optimization Plan:**")
+                    optimized_plan = result.get('optimized_plan', [])
+                    if optimized_plan:
+                        plan_df = pd.DataFrame(optimized_plan)
+                        st.dataframe(plan_df, use_container_width=True)
+                    
+                    # Approval
+                    st.markdown("**🤔 Do you approve this optimization plan?**")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        if st.button("✅ Yes, Apply Optimization", type="primary"):
+                            st.success("🎉 Optimization plan approved and applied!")
+                    
+                    with col2:
+                        if st.button("❌ No, Keep Current Plan"):
+                            st.warning("⚠️ Optimization plan rejected.")
+                
+                except Exception as e:
+                    st.error(f"❌ Optimization failed: {str(e)}")
     else:
-        st.line_chart(history_df.set_index('run_number')[['total_cost', 'container_util']])
+        st.warning("⚠️ Optimization engine not available.")
     
-    # Recent runs
-    st.subheader("📋 Recent Optimization Runs")
-    
-    for _, row in history_df.head(5).iterrows():
-        with st.container():
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Run", f"#{row['run_number']}")
-            with col2:
-                st.metric("Cost", f"€{row['total_cost']:,.0f}")
-            with col3:
-                st.metric("Utilization", f"{row['container_util']*100:.1f}%")
-            with col4:
-                st.metric("Date", row['timestamp'].strftime('%m/%d'))
-        st.markdown("---")
+    # Data Display
+    st.markdown('<div class="section-header"><h3>👀 Raw Data</h3></div>', unsafe_allow_html=True)
+    st.dataframe(ppq_df, use_container_width=True)
 
 if __name__ == "__main__":
     main()
