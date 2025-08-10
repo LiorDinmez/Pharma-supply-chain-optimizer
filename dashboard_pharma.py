@@ -583,7 +583,7 @@ def generate_tms_booking():
 
 @st.cache_data
 def generate_otif_historical():
-    """OTIF Historical - 40 rows (8 months x 5 customers)"""
+    """OTIF Historical - 40 rows (8 months x 5 customers) - Business target 80%"""
     customers = ['PharmaCorp EU', 'MedDistrib GmbH', 'HealthPlus SPA', 'Farma Nederland', 'MediSupply FR']
     months = ['2024-12', '2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06', '2025-07']
     
@@ -591,8 +591,9 @@ def generate_otif_historical():
     for month in months:
         for customer in customers:
             total_orders = random.randint(10, 25)
-            on_time = int(total_orders * random.uniform(0.65, 0.95))
-            in_full = int(total_orders * random.uniform(0.70, 0.95))
+            # Target around 80% OTIF with realistic variation
+            on_time = int(total_orders * random.uniform(0.75, 0.88))
+            in_full = int(total_orders * random.uniform(0.78, 0.85))
             otif_orders = min(on_time, in_full)
             otif_percentage = round((otif_orders / total_orders) * 100, 1)
             
@@ -759,16 +760,19 @@ def generate_routing_constraints():
 
 @st.cache_data
 def generate_weekly_shipment_planning():
-    """Weekly Shipment Planning with Timeslots - 20 rows"""
+    """Weekly Shipment Planning with Routes and Transport Modes - 20 rows"""
     timeslots = ['08:00-10:00', '10:00-12:00', '12:00-14:00', '14:00-16:00', '16:00-18:00']
     days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+    routes = ['RT-001', 'RT-002', 'RT-003', 'RT-004', 'RT-005']
+    transport_modes = ['Air', 'Sea', 'Road', 'Rail']
     
     data = []
     for i in range(1, 21):
         day = random.choice(days)
         timeslot = random.choice(timeslots)
         batch_id = f"200016{4800 + random.randint(1, 150)}"
-        route_id = f"RT-{random.randint(1, 15):03d}"
+        route_id = random.choice(routes)
+        transport_mode = random.choice(transport_modes)
         capacity_utilization = random.randint(60, 95)
         priority = random.choice(['High', 'Medium', 'Low'])
         
@@ -777,6 +781,7 @@ def generate_weekly_shipment_planning():
             'timeslot': timeslot,
             'batch_id': batch_id,
             'route_id': route_id,
+            'transport_mode': transport_mode,
             'capacity_utilization_percent': capacity_utilization,
             'priority': priority,
             'planned_weight_kg': random.randint(2000, 10000),
@@ -840,8 +845,6 @@ def main():
     otif_df = datasets['otif_historical']
     inventory_df = datasets['current_inventory']
     
-    st.success("✅ Data generated successfully!")
-    
     # Log current data to SQLite database
     log_daily_data(ppq_df, otif_df, inventory_df)
     
@@ -851,6 +854,8 @@ def main():
     # Calculate data for all charts
     station_workload = ppq_df['current_station'].value_counts().reset_index()
     station_workload.columns = ['station', 'batch_count']
+    # Sort by batch count descending (high to low)
+    station_workload = station_workload.sort_values('batch_count', ascending=False)
     
     station_performance = ppq_df.groupby('current_station').agg({
         'value_eur': 'sum',
@@ -858,6 +863,8 @@ def main():
     }).round(1)
     station_performance.columns = ['total_value', 'avg_days']
     station_performance = station_performance.reset_index()
+    # Sort by total value descending (high to low) for consistent ordering
+    station_performance = station_performance.sort_values('total_value', ascending=False)
     
     # Create 3 columns for the charts
     col1, col2, col3 = st.columns(3)
@@ -942,9 +949,114 @@ def main():
                           annotation_text="Target: 15 days")
         st.plotly_chart(fig_days, use_container_width=True, config={'displayModeBar': False})
     
-
+    # Station Performance Summary - By Number of Batches
+    st.markdown('<div class="section-header"><h3>📊 Station Performance Summary</h3></div>', unsafe_allow_html=True)
     
-
+    # Calculate current batch counts per station
+    current_batch_counts = ppq_df['current_station'].value_counts().reset_index()
+    current_batch_counts.columns = ['station', 'batch_count']
+    
+    # Create trend data based on batch counts (simulating historical trend)
+    trend_data = []
+    
+    for _, row in current_batch_counts.iterrows():
+        station = row['station']
+        current_count = row['batch_count']
+        
+        # Simulate historical trend (for demo purposes)
+        # In a real scenario, this would come from historical data
+        historical_count = int(current_count * random.uniform(0.8, 1.2))  # ±20% variation
+        trend_change = current_count - historical_count
+        
+        if trend_change > 0:
+            trend_direction = "Increasing"
+            trend_color = "#f56565"  # Red for increasing workload
+        elif trend_change < 0:
+            trend_direction = "Decreasing"
+            trend_color = "#48bb78"  # Green for decreasing workload
+        else:
+            trend_direction = "Stable"
+            trend_color = "#f6ad55"  # Orange for stable
+        
+        trend_data.append({
+            'station': station,
+            'trend_direction': trend_direction,
+            'current_count': current_count,
+            'historical_count': historical_count,
+            'color': trend_color
+        })
+    
+    if trend_data:
+        trend_df = pd.DataFrame(trend_data)
+        
+        # Display all stations as horizontal cards
+        cols = st.columns(len(trend_df))
+        for i, (_, row) in enumerate(trend_df.iterrows()):
+            with cols[i]:
+                st.markdown(f"""
+                <div style="background: #2d3748; padding: 10px; margin: 5px 0; border-radius: 8px; border-left: 4px solid {row['color']}; text-align: center;">
+                    <div style="color: #ffffff; font-size: 10px; font-weight: bold;">{row['station']}</div>
+                    <div style="color: {row['color']}; font-size: 12px; font-weight: bold;">{row['trend_direction']}</div>
+                    <div style="color: #a0aec0; font-size: 9px;">{row['current_count']} batches</div>
+                </div>
+                """, unsafe_allow_html=True)
+    
+    # Inventory
+    st.markdown('<div class="section-header"><h3>📊 Inventory</h3></div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        # Current FG inventory (higher - before optimization)
+        current_fg_inventory_value = inventory_df['value_eur'].sum() + ppq_df['value_eur'].sum()
+        
+        st.markdown(f"""
+        <div class="metric-container">
+            <div class="metric-title">💰 Current FG Inventory</div>
+            <div class="metric-value" style="color: #f56565;">€{current_fg_inventory_value:,.0f}</div>
+            <div class="metric-subtitle">High inventory - Slow cycle time</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        # Expected FG inventory at end of month (lower - after 30% reduction)
+        optimized_fg_inventory_value = int(current_fg_inventory_value * 0.7)  # 30% reduction
+        savings = current_fg_inventory_value - optimized_fg_inventory_value
+        
+        st.markdown(f"""
+        <div class="metric-container">
+            <div class="metric-title">📅 Expected FG Inventory EOM</div>
+            <div class="metric-value" style="color: #48bb78;">€{optimized_fg_inventory_value:,.0f}</div>
+            <div class="metric-subtitle">Savings: €{savings:,.0f} | 30% reduction</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        # Top 5 High Value Inventory Items - Horizontal Cards with Acronyms
+        top_5_inventory = inventory_df.nlargest(5, 'value_eur')[['material', 'value_eur', 'location', 'quantity_doses']]
+        
+        # Create acronyms for materials
+        def get_material_acronym(material):
+            words = material.split()
+            if len(words) >= 2:
+                return f"{words[0][:3]}-{words[1][:3]}"
+            else:
+                return material[:6]
+        
+        st.markdown("**Top 5 High Value Inventory Items**")
+        cols = st.columns(5)
+        for idx, (_, row) in enumerate(top_5_inventory.iterrows()):
+            with cols[idx]:
+                acronym = get_material_acronym(row['material'])
+                location_short = row['location'].replace('_', ' ')[:8]
+                st.markdown(f"""
+                <div style="background: #2d3748; padding: 10px; margin: 5px 0; border-radius: 8px; border-left: 4px solid #4299e1; text-align: center;">
+                    <div style="color: #ffffff; font-size: 9px; font-weight: bold;">{acronym}</div>
+                    <div style="color: #4299e1; font-size: 11px; font-weight: bold;">€{row['value_eur']:,.0f}</div>
+                    <div style="color: #a0aec0; font-size: 8px;">{location_short}</div>
+                    <div style="color: #a0aec0; font-size: 8px;">{row['quantity_doses']:,.0f}</div>
+                </div>
+                """, unsafe_allow_html=True)
     
     # Logistics
     st.markdown('<div class="section-header"><h3>📦 Logistics</h3></div>', unsafe_allow_html=True)
@@ -980,34 +1092,7 @@ def main():
         </div>
         """, unsafe_allow_html=True)
     
-    # Laboratory Total Queue
-    st.markdown('<div class="section-header"><h3>🔬 Laboratory</h3></div>', unsafe_allow_html=True)
-    
-    # Calculate laboratory queue data
-    lab_stations = ['QA-MFG', 'QA-PCK', 'QC']
-    lab_data = ppq_df[ppq_df['current_station'].isin(lab_stations)]
-    lab_count = len(lab_data)
-    lab_value = lab_data['value_eur'].sum()
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown(f"""
-        <div class="metric-container">
-            <div class="metric-title">🔬 Laboratory Total Queue</div>
-            <div class="metric-value" style="color: #4299e1;">€{lab_value:,.0f}</div>
-            <div class="metric-subtitle">{lab_count} rows</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div class="metric-container">
-            <div class="metric-title">🧪 Laboratory Total Queue - Batches</div>
-            <div class="metric-value" style="color: #9f7aea;">{lab_count}</div>
-            <div class="metric-subtitle">Batches in Lab Queue</div>
-        </div>
-        """, unsafe_allow_html=True)
+
     
     # Top 5 Lists as Horizontal Cards
     st.markdown('<div class="section-header"><h3>🏆 Top 5 Rankings</h3></div>', unsafe_allow_html=True)
@@ -1078,77 +1163,22 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
     
-    # Inventory
-    st.markdown('<div class="section-header"><h3>📊 Inventory</h3></div>', unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        # Current FG inventory (higher - before optimization)
-        current_fg_inventory_value = inventory_df['value_eur'].sum() + ppq_df['value_eur'].sum()
-        
-        st.markdown(f"""
-        <div class="metric-container">
-            <div class="metric-title">💰 Current FG Inventory</div>
-            <div class="metric-value" style="color: #f56565;">€{current_fg_inventory_value:,.0f}</div>
-            <div class="metric-subtitle">High inventory - Slow cycle time</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        # Expected FG inventory at end of month (lower - after 30% reduction)
-        optimized_fg_inventory_value = int(current_fg_inventory_value * 0.7)  # 30% reduction
-        savings = current_fg_inventory_value - optimized_fg_inventory_value
-        
-        st.markdown(f"""
-        <div class="metric-container">
-            <div class="metric-title">📅 Expected FG Inventory EOM</div>
-            <div class="metric-value" style="color: #48bb78;">€{optimized_fg_inventory_value:,.0f}</div>
-            <div class="metric-subtitle">Savings: €{savings:,.0f} | 30% reduction</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        # Top 5 High Value Inventory Items - Horizontal Cards with Acronyms
-        top_5_inventory = inventory_df.nlargest(5, 'value_eur')[['material', 'value_eur', 'location', 'quantity_doses']]
-        
-        # Create acronyms for materials
-        def get_material_acronym(material):
-            words = material.split()
-            if len(words) >= 2:
-                return f"{words[0][:3]}-{words[1][:3]}"
-            else:
-                return material[:6]
-        
-        st.markdown("**Top 5 High Value Inventory Items**")
-        cols = st.columns(5)
-        for idx, (_, row) in enumerate(top_5_inventory.iterrows()):
-            with cols[idx]:
-                acronym = get_material_acronym(row['material'])
-                location_short = row['location'].replace('_', ' ')[:8]
-                st.markdown(f"""
-                <div style="background: #2d3748; padding: 10px; margin: 5px 0; border-radius: 8px; border-left: 4px solid #4299e1; text-align: center;">
-                    <div style="color: #ffffff; font-size: 9px; font-weight: bold;">{acronym}</div>
-                    <div style="color: #4299e1; font-size: 11px; font-weight: bold;">€{row['value_eur']:,.0f}</div>
-                    <div style="color: #a0aec0; font-size: 8px;">{location_short}</div>
-                    <div style="color: #a0aec0; font-size: 8px;">{row['quantity_doses']:,.0f}</div>
-                </div>
-                """, unsafe_allow_html=True)
+
     
 
     
     # Historical Analysis & Trends
     st.markdown('<div class="section-header"><h3>📈 Historical Analysis & Trends (Last 4 Weeks)</h3></div>', unsafe_allow_html=True)
     
-    # Get historical data
-    daily_data, station_data, queue_data = get_historical_data(weeks=4)
+    # Get historical data (always generate extrapolated data for demo)
+    queue_data = create_extrapolated_queue_data(weeks=4)
     
-    if not daily_data.empty:
+    if not queue_data.empty:
         col1, col2 = st.columns(2)
         
         with col1:
             # Total Batches Trend Chart
-            if not queue_data.empty and 'total_batches' in queue_data.columns:
+            if 'total_batches' in queue_data.columns:
                 fig_batch_trend = px.line(
                     queue_data,
                     x='date',
@@ -1175,10 +1205,13 @@ def main():
                 fig_batch_trend.add_hline(y=130, line_dash="dash", line_color="green", 
                                         annotation_text="Target: 130 batches")
                 st.plotly_chart(fig_batch_trend, use_container_width=True, config={'displayModeBar': False})
+            else:
+                st.error("Debug: total_batches column not found in queue_data")
+                st.write("Available columns:", queue_data.columns.tolist())
         
         with col2:
             # Laboratory Batches Trend Chart
-            if not queue_data.empty and 'lab_batches' in queue_data.columns:
+            if 'lab_batches' in queue_data.columns:
                 fig_lab_trend = px.line(
                     queue_data,
                     x='date',
@@ -1205,58 +1238,16 @@ def main():
                 fig_lab_trend.add_hline(y=35, line_dash="dash", line_color="purple", 
                                         annotation_text="Target: 35 lab batches")
                 st.plotly_chart(fig_lab_trend, use_container_width=True, config={'displayModeBar': False})
+            else:
+                st.error("Debug: lab_batches column not found in queue_data")
+                st.write("Available columns:", queue_data.columns.tolist())
+    else:
+        st.error("Debug: queue_data is empty")
+        # Try to create data directly
+        queue_data = create_extrapolated_queue_data(weeks=4)
+        st.write("Created queue_data:", queue_data.head())
     
-    # Station Performance Summary - By Number of Batches
-    st.markdown('<div class="section-header"><h3>📊 Station Performance Summary</h3></div>', unsafe_allow_html=True)
-    
-    # Calculate current batch counts per station
-    current_batch_counts = ppq_df['current_station'].value_counts().reset_index()
-    current_batch_counts.columns = ['station', 'batch_count']
-    
-    # Create trend data based on batch counts (simulating historical trend)
-    trend_data = []
-    
-    for _, row in current_batch_counts.iterrows():
-        station = row['station']
-        current_count = row['batch_count']
-        
-        # Simulate historical trend (for demo purposes)
-        # In a real scenario, this would come from historical data
-        historical_count = int(current_count * random.uniform(0.8, 1.2))  # ±20% variation
-        trend_change = current_count - historical_count
-        
-        if trend_change > 0:
-            trend_direction = "Increasing"
-            trend_color = "#f56565"  # Red for increasing workload
-        elif trend_change < 0:
-            trend_direction = "Decreasing"
-            trend_color = "#48bb78"  # Green for decreasing workload
-        else:
-            trend_direction = "Stable"
-            trend_color = "#f6ad55"  # Orange for stable
-        
-        trend_data.append({
-            'station': station,
-            'trend_direction': trend_direction,
-            'current_count': current_count,
-            'historical_count': historical_count,
-            'color': trend_color
-        })
-    
-    if trend_data:
-        trend_df = pd.DataFrame(trend_data)
-        
-        # Display all stations as horizontal cards
-        cols = st.columns(len(trend_df))
-        for i, (_, row) in enumerate(trend_df.iterrows()):
-            with cols[i]:
-                st.markdown(f"""
-                <div style="background: #2d3748; padding: 10px; margin: 5px 0; border-radius: 8px; border-left: 4px solid {row['color']}; text-align: center;">
-                    <div style="color: #ffffff; font-size: 10px; font-weight: bold;">{row['station']}</div>
-                    <div style="color: {row['color']}; font-size: 12px; font-weight: bold;">{row['trend_direction']}</div>
-                    <div style="color: #a0aec0; font-size: 9px;">{row['current_count']} batches</div>
-                </div>
-                """, unsafe_allow_html=True)
+
     
     # Optimization Engine
     if OPTIMIZATION_AVAILABLE:
@@ -1264,8 +1255,8 @@ def main():
         
         # Load optimization data
         try:
-            batches_df = pd.read_csv('batches_v2.csv')
-            routes_df = pd.read_csv('routes_v2.csv')
+            batches_df = pd.read_excel('batches_v2.xlsx')
+            routes_df = pd.read_excel('routes_v2.xlsx')
             
             col1, col2 = st.columns(2)
             
@@ -1468,10 +1459,10 @@ def main():
                     
                     except Exception as e:
                         st.error(f"❌ Optimization failed: {str(e)}")
-                        st.info("💡 Make sure the CSV files (batches_v2.csv and routes_v2.csv) are in the same directory as the dashboard.")
+                        st.info("💡 Make sure the Excel files (batches_v2.xlsx and routes_v2.xlsx) are in the same directory as the dashboard.")
         except FileNotFoundError:
             st.error("❌ Optimization data files not found!")
-            st.info("💡 Please ensure 'batches_v2.csv' and 'routes_v2.csv' are in the same directory as the dashboard.")
+            st.info("💡 Please ensure 'batches_v2.xlsx' and 'routes_v2.xlsx' are in the same directory as the dashboard.")
         except Exception as e:
             st.error(f"❌ Error loading optimization data: {str(e)}")
     else:
@@ -1545,6 +1536,9 @@ def main():
     
     if selected_dataset:
         st.dataframe(datasets[selected_dataset], use_container_width=True)
+    
+    # Success message at the bottom
+    st.success("✅ Data generated successfully!")
 
 if __name__ == "__main__":
     main()
